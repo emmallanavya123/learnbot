@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LearnBot — LearnSphere AI Assistant</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <div class="shell">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">L</div>
+        <div>
+          <div class="brand-name">LearnBot</div>
+          <div class="brand-sub">LearnSphere AI</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-label">Quick questions</div>
+        <button class="quick-btn" onclick="fillQuery('What are the prerequisites for ML301?')">
+          Prerequisites for ML301
+        </button>
+        <button class="quick-btn" onclick="fillQuery('How do I reset my password?')">
+          Reset my password
+        </button>
+        <button class="quick-btn" onclick="fillQuery('I cannot access my course videos')">
+          Cannot access videos
+        </button>
+        <button class="quick-btn" onclick="fillQuery('How do I download my certificate?')">
+          Download certificate
+        </button>
+        <button class="quick-btn" onclick="fillQuery('Am I enrolled in GEN401 for student STU003?')">
+          Check enrollment
+        </button>
+        <button class="quick-btn" onclick="fillQuery('I was charged twice for my subscription')">
+          Billing issue
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="legend-title">Intent routing</div>
+        <div class="legend-item">
+          <span class="legend-dot dot-course"></span> Course queries
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot dot-support"></span> Support tickets
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot dot-faq"></span> FAQ answers
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot dot-blocked"></span> Blocked
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main area -->
+    <main class="main">
+
+      <!-- Header -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="topbar-title">LearnSphere Assistant</h1>
+          <span class="topbar-sub">Powered by LangGraph + Gemini</span>
+        </div>
+        <div class="topbar-right">
+          <span class="status-dot"></span>
+          <span class="status-text">Online</span>
+        </div>
+      </header>
+
+      <!-- Chat history -->
+      <section class="chat-area">
+
+        <!-- Welcome message -->
+        {% if not history %}
+        <div class="welcome">
+          <div class="welcome-icon">L</div>
+          <h2 class="welcome-title">Hi, I am LearnBot</h2>
+          <p class="welcome-sub">
+            Ask me about courses, enrollment, support issues, or any platform questions.
+          </p>
+          <div class="welcome-chips">
+            <span class="chip" onclick="fillQuery('What courses are available?')">Explore courses</span>
+            <span class="chip" onclick="fillQuery('How do I reset my password?')">Account help</span>
+            <span class="chip" onclick="fillQuery('I have a billing problem')">Billing support</span>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Conversation history -->
+        {% for item in history %}
+        <div class="msg-row user-row">
+          <div class="msg user-msg">{{ item.user }}</div>
+          <div class="avatar user-avatar">U</div>
+        </div>
+        <div class="msg-row bot-row">
+          <div class="avatar bot-avatar">L</div>
+          <div class="msg bot-msg">
+            {% if item.intent %}
+            <span class="intent-pill intent-{{ item.intent }}">{{ item.intent }}</span>
+            {% endif %}
+            {{ item.bot | safe }}
+          </div>
+        </div>
+        {% endfor %}
+
+        <!-- Latest response -->
+        {% if status %}
+        <div class="msg-row bot-row">
+          <div class="avatar bot-avatar">L</div>
+          <div class="msg bot-msg {% if status == 'UNSAFE' or status == 'REVIEW_NEEDED' %}msg-blocked{% endif %}">
+
+            {% if intent %}
+            <span class="intent-pill intent-{{ intent }}">{{ intent }}</span>
+            {% endif %}
+
+            {% if status == 'UNSAFE' or status == 'REVIEW_NEEDED' %}
+            <div class="blocked-banner">
+              <span class="blocked-icon">!</span>
+              Request blocked — policy violation detected
+            </div>
+            {% endif %}
+
+            <div class="response-body">{{ response | safe }}</div>
+
+            <!-- Metadata strip -->
+            <div class="meta-strip">
+              <span class="meta-item">
+                <span class="meta-label">Status</span>
+                <span class="badge badge-{{ status | lower }}">{{ status }}</span>
+              </span>
+              {% if agent_used %}
+              <span class="meta-item">
+                <span class="meta-label">Agent</span>
+                <span class="meta-value">{{ agent_used }}</span>
+              </span>
+              {% endif %}
+              {% if tool_calls %}
+              <span class="meta-item">
+                <span class="meta-label">Tools used</span>
+                <span class="meta-value">{{ tool_calls | join(', ') }}</span>
+              </span>
+              {% endif %}
+            </div>
+
+            <!-- Safety flags -->
+            {% if safety_flags %}
+            <div class="flags-section">
+              <div class="flags-title">Safety flags detected</div>
+              {% for flag in safety_flags %}
+              <div class="flag-row">
+                <span class="flag-severity severity-{{ flag.severity | lower }}">
+                  {{ flag.severity }}
+                </span>
+                <span class="flag-category">{{ flag.category | replace('_', ' ') }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+          </div>
+        </div>
+        {% endif %}
+
+      </section>
+
+      <!-- Input area -->
+      <footer class="input-area">
+        <form method="post" class="input-form" id="chat-form">
+          <textarea
+            id="user_input"
+            name="user_input"
+            class="input-box"
+            rows="1"
+            placeholder="Ask about courses, support, or account help..."
+            onkeydown="handleKey(event)"
+          ></textarea>
+          <button type="submit" class="send-btn" aria-label="Send">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
+        <div class="input-hint">
+          Press Enter to send · Shift+Enter for new line
+        </div>
+      </footer>
+
+    </main>
+  </div>
+
+  <script>
+    function fillQuery(text) {
+      document.getElementById('user_input').value = text;
+      document.getElementById('user_input').focus();
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('chat-form').submit();
+      }
+    }
+
+    // Auto-scroll to latest message
+    window.addEventListener('load', () => {
+      const chatArea = document.querySelector('.chat-area');
+      if (chatArea) chatArea.scrollTop = chatArea.scrollHeight;
+    });
+
+    // Auto-resize textarea
+    const textarea = document.getElementById('user_input');
+    if (textarea) {
+      textarea.addEventListener('input', () => {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 160) + 'px';
+      });
+    }
+  </script>
+
+</body>
+</html>
