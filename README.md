@@ -125,6 +125,7 @@ Returns:
 
 ## Part D — LangGraph Workflow Architecture
 
+
 ### LearnBotState — 8 Required Fields
 
 Defined as a `TypedDict` in `models.py`:
@@ -194,50 +195,4 @@ flowchart TD
 learnbot_graph.get_graph().draw_mermaid_png(output_file_path="learnbot_graph.png")
 ```
 
-### Design Reflections
-
-**REFLECTION 1 — Why TypedDict over plain dict for state?**
-TypedDict gives static type checking — mypy and IDEs catch field-name typos at write-time instead of runtime. It also self-documents what fields the graph expects, making the codebase easier to maintain and extend.
-
-**REFLECTION 2 — Why conditional edges over a single router node?**
-Conditional edges are declarative — LangGraph can visualize and compile them into a graph diagram. A single router node would hide all branching logic inside imperative code, making it harder to inspect, test, or swap individual branches without touching the router itself.
-
-**REFLECTION 3 — How to add memory / persistence across sessions?**
-Use LangGraph's checkpointer (`SqliteSaver` or `RedisSaver`). Pass it to `StateGraph.compile(checkpointer=...)` and provide a `thread_id` per user session. The graph will automatically save and restore state between invocations so conversation history persists across page reloads.
-
 ---
-
-## Part D — Task Completion Audit
-
-| Task | Requirement | Status |
-|---|---|---|
-| **D.1** | `LearnBotState` TypedDict with all 8 fields; `receive_input` + `safety_check` nodes wired | ✅ Complete |
-| **D.2** | Conditional edge 1: `safety_check` → `intent_classifier` (safe) or `rejection_handler` (unsafe) | ✅ Complete |
-| **D.3** | `intent_classifier` with keyword matching; 3-way conditional edge to handlers | ✅ Complete |
-| **D.4** | All 3 handler nodes; `add_edge` to `END`; `set_entry_point`; `graph.compile()` | ✅ Complete |
-| **D.5** | `graph.get_graph().draw_mermaid_png()` saved as `learnbot_graph.png` | ⚠️ Missing — add one-liner below |
-| **D.6** | 3 `# REFLECTION` comment blocks: TypedDict, conditional edges, persistence | ✅ Complete |
-
-**Result: 5 / 6 tasks satisfied. Only D.5 is missing — the graph diagram export call.**
-
-Add this one line to the bottom of `graph.py` to fix D.5:
-
-```python
-learnbot_graph.get_graph().draw_mermaid_png(output_file_path="learnbot_graph.png")
-```
-
----
-
-## Tests
-
-```bash
-pytest tests/test_safety.py    # 10-query adversarial matrix (5 legit + 5 adversarial)
-pytest tests/test_agents.py    # tool-scope validation per agent
-pytest tests/test_graph.py     # end-to-end graph invocation
-```
-
----
-
-## License
-
-MIT
